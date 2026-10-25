@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { Package, Shield, Zap, AlertCircle, CheckCircle } from 'lucide-react';
+import { Package, Shield, Zap, AlertCircle, CheckCircle, UserCheck, AlertTriangle } from 'lucide-react';
 
 function RegisterForm() {
   const searchParams = useSearchParams();
@@ -20,10 +20,41 @@ function RegisterForm() {
     shippingAddress: ''
   });
 
+  const [sponsorStatus, setSponsorStatus] = useState<{
+    loading: boolean;
+    valid: boolean | null;
+    name?: string;
+    error?: string;
+  }>({ loading: false, valid: null });
+
+  // Function to validate sponsor ID
+  const validateSponsor = async (id: string) => {
+    if (!id || id.trim() === '') {
+      setSponsorStatus({ loading: false, valid: false, error: 'Sponsor ID cannot be empty.' });
+      return;
+    }
+
+    setSponsorStatus({ loading: true, valid: null });
+    try {
+      const res = await fetch(`/api/auth/validate-sponsor?id=${encodeURIComponent(id.trim().toUpperCase())}`);
+      const data = await res.json();
+      if (data.valid) {
+        setSponsorStatus({ loading: false, valid: true, name: data.sponsor.name });
+      } else {
+        setSponsorStatus({ loading: false, valid: false, error: data.error || 'Invalid Sponsor ID' });
+      }
+    } catch {
+      setSponsorStatus({ loading: false, valid: false, error: 'Failed to verify sponsor ID' });
+    }
+  };
+
+  // Validate initial sponsor ID on mount or when urlSponsor changes
   useEffect(() => {
+    const targetId = urlSponsor || formData.sponsorId;
     if (urlSponsor) {
       setFormData((prev) => ({ ...prev, sponsorId: urlSponsor }));
     }
+    validateSponsor(targetId);
   }, [urlSponsor]);
 
   const [loading, setLoading] = useState(false);
@@ -32,6 +63,11 @@ function RegisterForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (sponsorStatus.valid === false) {
+      setError('Please provide a valid Direct Sponsor ID before registering.');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -57,17 +93,6 @@ function RegisterForm() {
 
   return (
     <div className="glass-card p-8 rounded-3xl border border-slate-800">
-      {urlSponsor && !successData && (
-        <div className="mb-6 p-4 rounded-2xl bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 text-xs flex items-center justify-between">
-          <span>
-            You were invited by Sponsor: <strong className="font-mono text-white">{urlSponsor}</strong>
-          </span>
-          <span className="px-2 py-0.5 rounded bg-cyan-500 text-slate-950 font-bold text-[10px]">
-            AUTO-LINKED
-          </span>
-        </div>
-      )}
-
       {error && (
         <div className="mb-6 p-4 rounded-2xl bg-red-950/60 border border-red-500/40 text-red-300 text-xs flex items-center gap-3">
           <AlertCircle className="w-5 h-5 shrink-0 text-red-400" />
@@ -155,17 +180,59 @@ function RegisterForm() {
             />
           </div>
 
+          {/* Sponsor ID Input with Real-time Validation & Name Display */}
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1.5">
               Direct Sponsor ID (Defaults to Root Admin ORB00000)
             </label>
-            <input
-              type="text"
-              required
-              value={formData.sponsorId}
-              onChange={(e) => setFormData({ ...formData, sponsorId: e.target.value })}
-              className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-sm text-cyan-400 font-mono uppercase focus:outline-none focus:border-cyan-500 transition-colors"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                required
+                value={formData.sponsorId}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setFormData({ ...formData, sponsorId: id });
+                  validateSponsor(id);
+                }}
+                className={`w-full px-4 py-3 bg-slate-900 border rounded-xl text-sm font-mono uppercase focus:outline-none transition-colors ${
+                  sponsorStatus.valid === true
+                    ? 'border-emerald-500/60 text-emerald-400'
+                    : sponsorStatus.valid === false
+                    ? 'border-red-500/60 text-red-400'
+                    : 'border-slate-800 text-cyan-400 focus:border-cyan-500'
+                }`}
+              />
+            </div>
+
+            {/* Sponsor Name Badge or Warning */}
+            <div className="mt-2">
+              {sponsorStatus.loading && (
+                <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
+                  <div className="w-3 h-3 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+                  Verifying Sponsor ID...
+                </div>
+              )}
+
+              {sponsorStatus.valid === true && (
+                <div className="px-3 py-2 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <UserCheck className="w-4 h-4 text-emerald-400" />
+                    Sponsor Name: <strong className="text-white font-sans">{sponsorStatus.name}</strong>
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-emerald-500 text-slate-950 font-bold text-[10px] font-mono">
+                    VERIFIED
+                  </span>
+                </div>
+              )}
+
+              {sponsorStatus.valid === false && (
+                <div className="px-3 py-2 rounded-xl bg-red-950/80 border border-red-500/40 text-red-300 text-xs flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+                  <span>{sponsorStatus.error || 'Sponsor ID not found in system!'}</span>
+                </div>
+              )}
+            </div>
           </div>
 
           <div>
@@ -222,7 +289,7 @@ function RegisterForm() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || sponsorStatus.valid === false}
             className="w-full py-4 bg-cyan-400 hover:bg-cyan-300 disabled:opacity-50 text-slate-950 font-black rounded-xl text-base transition-all shadow-lg shadow-cyan-500/20"
           >
             {loading ? 'Processing Registration & Spillover...' : 'Register & Pay ₹6,000'}
