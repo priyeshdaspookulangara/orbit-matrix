@@ -4,13 +4,14 @@ import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import {
-  User, Wallet, Package, Network, Users, ArrowUpRight, CheckCircle2, Clock, Truck, ShieldCheck, ChevronRight
+  User, Wallet, Package, Network, Users, ArrowUpRight, CheckCircle2, Clock, Truck, ShieldCheck, ChevronRight, Copy, Check, Share2
 } from 'lucide-react';
 
 export default function MemberDashboard() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     fetch('/api/user/dashboard')
@@ -57,6 +58,16 @@ export default function MemberDashboard() {
 
   const { user, order, transactions, referrals, children, tree } = data;
 
+  const referralUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/register?sponsor=${user.id}`
+    : `http://localhost:3000/register?sponsor=${user.id}`;
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(referralUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 3000);
+  };
+
   return (
     <div className="min-h-screen bg-[#0b0f19] text-slate-100 flex flex-col font-sans">
       <Navbar />
@@ -87,6 +98,49 @@ export default function MemberDashboard() {
                 ₹{user.wallet_balance.toLocaleString('en-IN')}
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Share Referral Link Card */}
+        <div className="glass-card p-6 rounded-3xl border border-cyan-500/40 bg-gradient-to-r from-cyan-950/40 via-slate-900/60 to-slate-900/80 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-cyan-950 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shrink-0">
+              <Share2 className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                Share Your Referral Link
+                <span className="text-[10px] text-cyan-300 bg-cyan-950 px-2 py-0.5 rounded-full border border-cyan-500/30">
+                  Earn ₹1,000 / Referral
+                </span>
+              </h3>
+              <p className="text-slate-400 text-xs mt-1">
+                Share this custom URL with prospective distributors to automatically assign your Sponsor ID ({user.id}) during sign up.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <input
+              type="text"
+              readOnly
+              value={referralUrl}
+              className="w-full md:w-80 px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs font-mono text-cyan-300 focus:outline-none"
+            />
+            <button
+              onClick={handleCopyLink}
+              className="px-5 py-2.5 bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold rounded-xl text-xs transition-all shadow-md shadow-cyan-500/20 flex items-center gap-2 shrink-0"
+            >
+              {copied ? (
+                <>
+                  <Check className="w-4 h-4 text-slate-950" /> Copied!
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4 text-slate-950" /> Copy Link
+                </>
+              )}
+            </button>
           </div>
         </div>
 

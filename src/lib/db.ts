@@ -51,14 +51,14 @@ export function initDb() {
     );
   `);
 
-  // Seed Root Node ORB00000 if not present
-  const rootUser = db.prepare(`SELECT * FROM users WHERE id = ?`).get('ORB00000');
+  // Seed Root Node ORB00000 if not present safely
+  const rootUser = db.prepare(`SELECT * FROM users WHERE id = ? OR email = ?`).get('ORB00000', 'admin@orb.com');
   if (!rootUser) {
     const bcrypt = require('bcryptjs');
     const rootPasswordHash = bcrypt.hashSync('admin123', 10);
 
     db.prepare(`
-      INSERT INTO users (id, name, email, password_hash, role, sponsor_id, parent_id, level, children_count, wallet_balance)
+      INSERT OR IGNORE INTO users (id, name, email, password_hash, role, sponsor_id, parent_id, level, children_count, wallet_balance)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       'ORB00000',
